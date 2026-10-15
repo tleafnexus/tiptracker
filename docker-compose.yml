@@ -1,15 +1,17 @@
+# Your own settings (port, setup key) go in a file named .env next to this one.
+# See .env.example. That way updating the app never overwrites them.
 services:
   tiptracker:
     build: .
     container_name: tiptracker
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${PORT:-8000}:8000"
     volumes:
       - ./data:/data
     environment:
-      TZ: America/Denver
-      # Setup key: needed once, to create the first (admin) account. Keep it secret.
-      APP_PASSWORD: "change-me"
-      # Uncomment when the app is only reached over HTTPS (reverse proxy / Cloudflare Tunnel):
-      # SECURE_COOKIES: "1"
+      TZ: ${TZ:-America/Denver}
+      # Setup key: needed once, to create the first (admin) account.
+      APP_PASSWORD: ${APP_PASSWORD:-}
+      # 1 when the app is only reached over HTTPS (reverse proxy / Cloudflare Tunnel)
+      SECURE_COOKIES: ${SECURE_COOKIES:-}

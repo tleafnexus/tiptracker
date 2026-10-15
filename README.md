@@ -18,9 +18,11 @@ You need Docker with the Compose plugin.
 
 ```bash
 cd tiptracker
-# edit docker-compose.yml: pick your port and set APP_PASSWORD (the setup key)
+cp .env.example .env     # then edit .env: pick your PORT and set APP_PASSWORD (the setup key)
 docker compose up -d --build
 ```
+
+Your settings live in `.env`, so copying in a newer version of the app never overwrites them.
 
 Open `http://<server-ip>:8000` (or your port). The first visit asks you to **create the first account**, which becomes the admin. You'll need the `APP_PASSWORD` value from `docker-compose.yml` as the setup key. On a phone, use Share → **Add to Home Screen** in Safari, or in Chrome use ⋮ → **Add to Home screen**. It then opens like an app.
 
@@ -40,12 +42,13 @@ Forgotten passwords: there's no email reset. An admin resets it and passes on th
 
 Your data is kept. After `docker compose up -d --build`, the first visit shows **Create the first account** with a note that existing data will belong to that account. Use the **old `APP_PASSWORD` as the setup key**. If the existing data is your partner's, create **her** account first (it becomes the admin), then add yours from the Admin page and make it an admin too.
 
-### Settings (environment variables)
+### Settings (in `.env`)
 
 | Variable | Default | What it does |
 |---|---|---|
 | `APP_PASSWORD` | *(none)* | **Setup key.** Needed only to create the very first account, so a stranger who finds the server before you can't claim it. After that, everyone logs in with their own username and password. **Set this.** |
 | `SECURE_COOKIES` | *(off)* | Set to `1` when the app is only reached over HTTPS (behind a reverse proxy), so login cookies are never sent unencrypted. |
+| `PORT` | `8000` | Port on the server you open in the browser. |
 | `TZ` | `America/Denver` | Used for "today" on new shifts. |
 | `SECRET_KEY` | auto-generated in `/data/.secret_key` | Signs login cookies. |
 
