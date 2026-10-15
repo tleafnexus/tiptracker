@@ -80,7 +80,31 @@ CREATE TABLE IF NOT EXISTS attachments (
     created_at    TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_attach_parent ON attachments(kind, parent_id);
+
+CREATE TABLE IF NOT EXISTS users (
+    id                   INTEGER PRIMARY KEY,
+    username             TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    display_name         TEXT DEFAULT '',
+    password_hash        TEXT NOT NULL,
+    is_admin             INTEGER NOT NULL DEFAULT 0,
+    active               INTEGER NOT NULL DEFAULT 1,
+    must_change_password INTEGER NOT NULL DEFAULT 0,
+    session_version      TEXT NOT NULL,          -- rotated to sign out every device
+    created_at           TEXT DEFAULT CURRENT_TIMESTAMP,
+    last_login           TEXT
+);
+
+-- Per-person preferences (workweek start, overtime threshold, last employer used).
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    key     TEXT NOT NULL,
+    value   TEXT,
+    PRIMARY KEY (user_id, key)
+);
 """
+
+# Tables whose rows belong to one person.
+OWNED_TABLES = ("employers", "shifts", "paystubs", "attachments")
 
 # Rates researched September 2026. Editable in Settings.
 SEED_LOCATIONS = [
@@ -103,7 +127,7 @@ DEFAULT_SETTINGS = {
 
 
 def connect():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
@@ -112,6 +136,7 @@ def connect():
 def init_db():
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     conn = connect()
+    conn.execute("PRAGMA journal_mode=WAL")   # lets several people read while one writes
     conn.executescript(SCHEMA)
     if conn.execute("SELECT COUNT(*) FROM locations").fetchone()[0] == 0:
         for name, notes, rates in SEED_LOCATIONS:
@@ -127,17 +152,35 @@ def init_db():
                      ("payday_offset", "INTEGER DEFAULT 0")]:  # days from period end to payday
         if col not in cols:
             conn.execute(f"ALTER TABLE employers ADD COLUMN {col} {ddl}")
-    for k, v in DEFAULT_SETTINGS.items():
-        conn.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
+    # Multi-user: every personal row gets an owner. Rows from a single-user
+    # install stay NULL until the first account is created and claims them.
+    for t in OWNED_TABLES:
+        if "user_id" not in {r[1] for r in conn.execute(f"PRAGMA table_info({t})")}:
+            conn.execute(f"ALTER TABLE {t} ADD COLUMN user_id INTEGER REFERENCES users(id)")
+        conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{t}_user ON {t}(user_id)")
     conn.commit()
     conn.close()
 
 
-def get_setting(conn, key):
-    row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+def unowned_count(conn):
+    return sum(conn.execute(f"SELECT COUNT(*) FROM {t} WHERE user_id IS NULL").fetchone()[0]
+               for t in ("employers", "shifts", "paystubs"))
+
+
+def claim_unowned(conn, user_id):
+    """Give data left over from the single-user version to this account."""
+    for t in OWNED_TABLES:
+        conn.execute(f"UPDATE {t} SET user_id=? WHERE user_id IS NULL", (user_id,))
+    for row in conn.execute("SELECT key, value FROM settings").fetchall():
+        conn.execute("INSERT OR IGNORE INTO user_settings(user_id, key, value) VALUES (?,?,?)",
+                     (user_id, row["key"], row["value"]))
+
+
+def get_setting(conn, user_id, key):
+    row = conn.execute("SELECT value FROM user_settings WHERE user_id=? AND key=?", (user_id, key)).fetchone()
     return row["value"] if row else DEFAULT_SETTINGS.get(key)
 
 
-def set_setting(conn, key, value):
-    conn.execute("INSERT INTO settings(key, value) VALUES (?, ?) "
-                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, str(value)))
+def set_setting(conn, user_id, key, value):
+    conn.execute("INSERT INTO user_settings(user_id, key, value) VALUES (?, ?, ?) "
+                 "ON CONFLICT(user_id, key) DO UPDATE SET value=excluded.value", (user_id, key, str(value)))

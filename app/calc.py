@@ -60,19 +60,19 @@ def week_start_of(dt, week_start):
 
 
 # ---------------------------------------------------------------- queries
-def employers(conn, include_inactive=True):
+def employers(conn, uid, include_inactive=True):
     q = ("SELECT e.*, l.name AS location_name FROM employers e "
-         "LEFT JOIN locations l ON l.id = e.location_id ")
+         "LEFT JOIN locations l ON l.id = e.location_id WHERE e.user_id = ? ")
     if not include_inactive:
-        q += "WHERE e.active = 1 "
-    return conn.execute(q + "ORDER BY e.id").fetchall()
+        q += "AND e.active = 1 "
+    return conn.execute(q + "ORDER BY e.id", (uid,)).fetchall()
 
 
-def shifts_between(conn, start, end, employer_id=None):
+def shifts_between(conn, uid, start, end, employer_id=None):
     q = ("SELECT s.*, e.name AS employer_name, e.location_id, e.tipped "
          "FROM shifts s JOIN employers e ON e.id = s.employer_id "
-         "WHERE s.date BETWEEN ? AND ? ")
-    args = [start.isoformat(), end.isoformat()]
+         "WHERE s.user_id = ? AND s.date BETWEEN ? AND ? ")
+    args = [uid, start.isoformat(), end.isoformat()]
     if employer_id:
         q += "AND s.employer_id = ? "
         args.append(employer_id)
@@ -110,7 +110,7 @@ def totals(shifts):
     return {k: (r2(v) if isinstance(v, float) else v) for k, v in t.items()}
 
 
-def chart_data(conn, shifts, emp_rows, start, end):
+def chart_data(conn, uid, shifts, emp_rows, start, end):
     """Data for the dashboard charts, as plain JSON-able dicts."""
     # Employers keep a fixed color slot by their id order, never by rank.
     slot = {e["id"]: i for i, e in enumerate(emp_rows)}
@@ -136,7 +136,7 @@ def chart_data(conn, shifts, emp_rows, start, end):
     last = max((d(s["date"]) for s in shifts), default=end)
     span_days = (last - first).days
     weekly = span_days <= 62
-    ws = int(get_setting(conn, "week_start"))
+    ws = int(get_setting(conn, uid, "week_start"))
 
     def bucket(dt):
         return week_start_of(dt, ws) if weekly else dt.replace(day=1)
@@ -194,17 +194,17 @@ def chart_data(conn, shifts, emp_rows, start, end):
 
 
 # ---------------------------------------------------------------- minimum wage check
-def wage_check(conn, start, end, employer_id=None):
+def wage_check(conn, uid, start, end, employer_id=None):
     """One row per employer per workweek.
 
     In New Mexico an employer may pay a tipped worker a lower cash wage only if
     cash wage + tips reach the full minimum wage for the hours worked; otherwise
     the employer owes the difference. We check that per workweek, per employer.
     """
-    ws = int(get_setting(conn, "week_start"))
-    ot = float(get_setting(conn, "overtime_hours"))
+    ws = int(get_setting(conn, uid, "week_start"))
+    ot = float(get_setting(conn, uid, "overtime_hours"))
     wk_start = week_start_of(start, ws)
-    rows = shifts_between(conn, wk_start, end, employer_id)
+    rows = shifts_between(conn, uid, wk_start, end, employer_id)
     groups = OrderedDict()
     for s in sorted(rows, key=lambda s: (s["date"], s["employer_id"])):
         wk = week_start_of(d(s["date"]), ws)
@@ -320,15 +320,15 @@ def pay_periods(conn, emp, start, end, today):
     out = []
     while ps <= end:
         s, e = period_containing(emp, ps)
-        rows = conn.execute("SELECT * FROM shifts WHERE employer_id=? AND date BETWEEN ? AND ?",
-                            (emp["id"], s.isoformat(), e.isoformat())).fetchall()
+        rows = conn.execute("SELECT * FROM shifts WHERE user_id=? AND employer_id=? AND date BETWEEN ? AND ?",
+                            (emp["user_id"], emp["id"], s.isoformat(), e.isoformat())).fetchall()
         t = totals(rows)
         pay = payday(emp, e)
         stub = conn.execute(
-            "SELECT * FROM paystubs WHERE employer_id=? AND period_end BETWEEN ? AND ? "
+            "SELECT * FROM paystubs WHERE user_id=? AND employer_id=? AND period_end BETWEEN ? AND ? "
             "ORDER BY ABS(julianday(period_end)-julianday(?)) LIMIT 1",
-            (emp["id"], s.isoformat(), e.isoformat(), e.isoformat())).fetchone()
-        weeks = [w for w in wage_check(conn, s, e, emp["id"]) if s <= w["week"] <= e]
+            (emp["user_id"], emp["id"], s.isoformat(), e.isoformat(), e.isoformat())).fetchone()
+        weeks = [w for w in wage_check(conn, emp["user_id"], s, e, emp["id"]) if s <= w["week"] <= e]
         topup = r2(sum(w["shortfall"] or 0 for w in weeks if w["status"] == "short"))
         if today < s:
             state = "future"
@@ -351,8 +351,8 @@ def pay_periods(conn, emp, start, end, today):
 def reconcile(conn, stub):
     """Compare a paystub with the shifts logged for that employer and period."""
     rows = conn.execute(
-        "SELECT * FROM shifts WHERE employer_id=? AND date BETWEEN ? AND ?",
-        (stub["employer_id"], stub["period_start"], stub["period_end"])).fetchall()
+        "SELECT * FROM shifts WHERE user_id=? AND employer_id=? AND date BETWEEN ? AND ?",
+        (stub["user_id"], stub["employer_id"], stub["period_start"], stub["period_end"])).fetchall()
     t = totals(rows)
     checks = []
 

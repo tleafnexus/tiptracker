@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Admin · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head"><h1>People</h1></div>
+<p class="muted small">Everyone here has their own employers, shifts, tips and paystubs. Nobody can see anyone else's, admins included. Admins can only add, reset and remove accounts, and manage the shared minimum wage rates.</p>
+
+<div class="grid-2" style="margin-top:12px">
+<section class="card">
+  <h2>Accounts</h2>
+  {% for u in users %}
+  <div class="list-item" style="display:block">
+    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap">
+      <div class="title">{{ u.display_name or u.username }}
+        {% if u.id == me.id %}<span class="muted small">(you)</span>{% endif %}</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap">
+        {% if u.is_admin %}<span class="badge ok">Admin</span>{% endif %}
+        {% if not u.active %}<span class="badge unknown">Turned off</span>{% endif %}
+        {% if u.must_change_password %}<span class="badge note">Temp password</span>{% endif %}
+      </div>
+    </div>
+    <div class="meta">@{{ u.username }} · {{ u.shift_count }} shift{{ 's' if u.shift_count != 1 }}{% if u.last_shift %}, last {{ u.last_shift|shortdate }}{% endif %}
+      · last login {{ u.last_login[:10] if u.last_login else 'never' }}</div>
+    <details style="margin-top:6px">
+      <summary class="small">Manage</summary>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        <form class="inline" method="post" onsubmit="return confirm('Reset the password for {{ u.username }}? They will be signed out everywhere.')">
+          <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="reset"><input type="hidden" name="user_id" value="{{ u.id }}">
+          <button class="btn small" type="submit">Reset password</button></form>
+        <form class="inline" method="post">
+          <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="toggle_admin"><input type="hidden" name="user_id" value="{{ u.id }}">
+          <button class="btn small" type="submit">{{ 'Remove admin' if u.is_admin else 'Make admin' }}</button></form>
+        {% if u.id != me.id %}
+        <form class="inline" method="post">
+          <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="toggle_active"><input type="hidden" name="user_id" value="{{ u.id }}">
+          <button class="btn small" type="submit">{{ 'Turn off' if u.active else 'Turn back on' }}</button></form>
+        {% endif %}
+      </div>
+      {% if u.id != me.id %}
+      <form method="post" style="margin-top:12px; border-top:1px solid var(--border); padding-top:10px">
+        <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="delete"><input type="hidden" name="user_id" value="{{ u.id }}">
+        <label for="del{{ u.id }}" style="color:var(--bad-ink)">Delete account and all its data</label>
+        <div style="display:flex; gap:8px">
+          <input id="del{{ u.id }}" name="confirm" placeholder="Type {{ u.username }} to confirm" autocomplete="off" autocapitalize="none">
+          <button class="btn small danger" type="submit">Delete</button>
+        </div>
+        <div class="hint">This can't be undone. Turning the account off keeps their data instead.</div>
+      </form>
+      {% endif %}
+    </details>
+  </div>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2>Add a person</h2>
+  <form method="post" style="margin-top:10px">
+    <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="create">
+    <div class="field"><label for="display_name">Name</label><input id="display_name" name="display_name" placeholder="e.g. Maria"></div>
+    <div class="field"><label for="username">Username</label>
+      <input id="username" name="username" required autocapitalize="none" autocorrect="off" spellcheck="false" pattern="[A-Za-z0-9._\-]{2,32}" autocomplete="off"></div>
+    <div class="field"><label for="password">Temporary password</label>
+      <input id="password" name="password" value="{{ suggested }}" minlength="8" autocomplete="off">
+      <div class="hint">Send it to them privately. They'll be asked to choose their own the first time they log in.</div></div>
+    <div class="field"><label class="check"><input type="checkbox" name="is_admin"> Make them an admin too</label></div>
+    <button class="btn primary" type="submit">Create account</button>
+  </form>
+</section>
+</div>
+{% endblock %}

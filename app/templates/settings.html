@@ -2,7 +2,7 @@
 {% from "_macros.html" import money_field, icon %}
 {% block title %}Settings · Tip Tracker{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Settings</h1>{% if auth_on %}<a class="btn small" href="{{ url_for('logout') }}">Log out</a>{% endif %}</div>
+<div class="page-head"><h1>Settings</h1><a class="btn small" href="{{ url_for('logout') }}">Log out</a></div>
 
 <div class="grid-2">
 <div class="card">
@@ -21,19 +21,27 @@
 </div>
 
 <div class="card">
-  <h2>Backup &amp; export</h2>
-  <p class="muted small" style="margin-top:6px">The backup has everything: the database plus every slip and paystub photo. Keep a copy somewhere other than the server.</p>
+  <h2>Your data</h2>
+  <p class="muted small" style="margin-top:6px">Download everything you've entered: shifts, paystubs and employers as spreadsheets (CSV), plus all your slip and paystub photos.</p>
   <div class="form-actions">
-    <a class="btn primary" href="{{ url_for('backup') }}">Download full backup (.zip)</a>
+    <a class="btn primary" href="{{ url_for('export_mine') }}">Download my data (.zip)</a>
     <a class="btn" href="{{ url_for('export_shifts') }}">Shifts CSV</a>
     <a class="btn" href="{{ url_for('export_paystubs') }}">Paystubs CSV</a>
   </div>
+  {% if is_admin %}
+  <div style="border-top:1px solid var(--border); margin-top:16px; padding-top:12px">
+    <h2 style="font-size:1rem">Whole-server backup <span class="badge unknown">Admin</span></h2>
+    <p class="muted small" style="margin-top:4px">The database and every photo, for <b>all</b> accounts. This is what you'd restore from. Keep a copy somewhere other than the server.</p>
+    <a class="btn" href="{{ url_for('backup') }}">Download full backup (.zip)</a>
+  </div>
+  {% endif %}
 </div>
 </div>
 
 <div class="card" style="margin-top:16px">
   <div class="card-head"><h2>Minimum wage by location</h2></div>
-  <div class="alert warn">{{ icon('warn') }}<div class="small">These rates were entered in September 2026. Albuquerque posts next year's rates by October 15, and NM rates can change by law. Add a new row with its start date when they change, and older weeks keep using the old rate.</div></div>
+  {% if not is_admin %}<p class="muted small">These are shared by everyone on this server. An admin keeps them up to date.</p>{% endif %}
+  {% if is_admin %}<div class="alert warn">{{ icon('warn') }}<div class="small">These rates are shared by everyone on this server. They were entered in September 2026. Albuquerque posts next year's rates by October 15, and NM rates can change by law. Add a new row with its start date when they change, and older weeks keep using the old rate.</div></div>{% endif %}
   {% for l in locations %}
   <div style="margin-top:14px">
     <h2 style="font-size:1rem">{{ l.name }}</h2>
@@ -44,9 +52,9 @@
       {% for r in rates[l.id] %}
         <tr><td>{{ r.effective_date|nicedate }}</td><td class="r">{{ money(r.min_wage) }}</td><td class="r">{{ money(r.tipped_cash_wage) }}</td>
           <td class="wrap muted small">{{ r.source }}</td>
-          <td><form class="inline" method="post" onsubmit="return confirm('Remove this rate?')">
+          <td>{% if is_admin %}<form class="inline" method="post" onsubmit="return confirm('Remove this rate for everyone?')">
             <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="delete_rate"><input type="hidden" name="rate_id" value="{{ r.id }}">
-            <button class="btn small danger" type="submit">Remove</button></form></td></tr>
+            <button class="btn small danger" type="submit">Remove</button></form>{% endif %}</td></tr>
       {% else %}
         <tr><td colspan="5" class="muted">No rates yet. The wage check can't run for this location.</td></tr>
       {% endfor %}
@@ -55,6 +63,7 @@
   </div>
   {% endfor %}
 
+  {% if is_admin %}
   <div class="grid-2" style="margin-top:20px">
     <form method="post">
       <h2 style="font-size:1rem">Add or update a rate</h2>
@@ -77,5 +86,6 @@
       <button class="btn" type="submit">Add location</button>
     </form>
   </div>
+  {% endif %}
 </div>
 {% endblock %}

@@ -30,8 +30,10 @@
       <a href="{{ url_for('wage_check_page') }}" class="{{ 'on' if nav == 'wage_check_page' }}">Wage check</a>
       <a href="{{ url_for('employers_page') }}" class="{{ 'on' if nav == 'employers_page' }}">Employers</a>
       <a href="{{ url_for('settings_page') }}" class="{{ 'on' if nav == 'settings_page' }}">Settings</a>
+      {% if me and me.is_admin %}<a href="{{ url_for('admin_users') }}" class="{{ 'on' if nav == 'admin_users' }}">Admin</a>{% endif %}
+      {% if me %}<a href="{{ url_for('account') }}" class="{{ 'on' if nav == 'account' }}" title="Your account">{{ me.display_name or me.username }}</a>{% endif %}
     </nav>
-    <a class="btn primary small top-add" href="{{ url_for('shift_form') }}">+ Log shift</a>
+    {% if me %}<a class="btn primary small top-add" href="{{ url_for('shift_form') }}">+ Log shift</a>{% endif %}
   </div>
 </header>
 {% endif %}
@@ -42,7 +44,7 @@
   {% block content %}{% endblock %}
 </main>
 {% block fab %}
-{% if not hide_nav and nav not in ('shift_form',) %}
+{% if not hide_nav and me and nav not in ('shift_form', 'account') %}
 <a class="btn primary fab" href="{{ url_for('shift_form') }}">+ Log shift</a>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% set hide_nav = True %}
+{% block title %}Set up · Tip Tracker{% endblock %}
+{% block content %}
+<div class="card login" style="max-width:440px">
+  <h1 style="margin-bottom:6px">Create the first account</h1>
+  <p class="muted">This account will be the <b>admin</b>: it can add other people, reset their passwords and update the minimum wage rates.</p>
+  {% if legacy %}
+  <div class="alert warn">{{ icon('warn') }}<div class="small">
+    Tip Tracker already has data in it from before accounts existed. <b>All of it will belong to this account.</b>
+    If that data is hers, create her account here. You can make your own account afterwards from the Admin page and give it admin rights too.</div></div>
+  {% endif %}
+  <form method="post">
+    <input type="hidden" name="_csrf" value="{{ csrf }}">
+    {% if needs_key %}
+    <div class="field"><label for="setup_key">Setup key</label>
+      <input id="setup_key" name="setup_key" type="password" required autocomplete="off">
+      <div class="hint">The <code>APP_PASSWORD</code> value from docker-compose.yml. It proves you're the one running this server.</div></div>
+    {% endif %}
+    <div class="field"><label for="display_name">Name</label>
+      <input id="display_name" name="display_name" placeholder="What the app should call you" autocomplete="name"></div>
+    <div class="field"><label for="username">Username</label>
+      <input id="username" name="username" required autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" pattern="[A-Za-z0-9._\-]{2,32}">
+      <div class="hint">Letters, numbers, dot, dash or underscore.</div></div>
+    <div class="row">
+      <div class="field"><label for="password">Password</label>
+        <input id="password" name="password" type="password" minlength="8" required autocomplete="new-password"></div>
+      <div class="field"><label for="confirm">Type it again</label>
+        <input id="confirm" name="confirm" type="password" minlength="8" required autocomplete="new-password"></div>
+    </div>
+    <button class="btn primary block" type="submit">Create account</button>
+  </form>
+</div>
+{% endblock %}

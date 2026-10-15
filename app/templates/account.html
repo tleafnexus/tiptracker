@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Your account · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Your account</h1>
+  {% if not me.must_change_password %}<a class="btn small" href="{{ url_for('logout') }}">Log out</a>{% endif %}</div>
+
+<div class="grid-2">
+  <section class="card">
+    <h2>{{ 'Choose your password' if me.must_change_password else 'Change password' }}</h2>
+    {% if me.must_change_password %}<p class="muted small" style="margin-top:4px">You signed in with a temporary password. Pick one only you know.</p>{% endif %}
+    <form method="post" style="margin-top:10px">
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="password">
+      <input type="text" name="username" value="{{ me.username }}" autocomplete="username" hidden>
+      <div class="field"><label for="current">{{ 'Temporary password' if me.must_change_password else 'Current password' }}</label>
+        <input id="current" name="current" type="password" required autocomplete="current-password"></div>
+      <div class="row">
+        <div class="field"><label for="password">New password</label>
+          <input id="password" name="password" type="password" minlength="8" required autocomplete="new-password"></div>
+        <div class="field"><label for="confirm">Type it again</label>
+          <input id="confirm" name="confirm" type="password" minlength="8" required autocomplete="new-password"></div>
+      </div>
+      <div class="hint" style="margin:-6px 0 12px">At least 8 characters. Changing it signs you out on your other devices.</div>
+      <button class="btn primary" type="submit">Save password</button>
+    </form>
+  </section>
+
+  {% if not me.must_change_password %}
+  <section class="card">
+    <h2>Profile</h2>
+    <dl class="kv" style="margin:10px 0 14px"><dt>Username</dt><dd>{{ me.username }}</dd>
+      <dt>Role</dt><dd>{{ 'Admin' if me.is_admin else 'Member' }}</dd></dl>
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="profile">
+      <div class="field"><label for="display_name">Name shown in the app</label>
+        <input id="display_name" name="display_name" value="{{ me.display_name }}"></div>
+      <button class="btn" type="submit">Save</button>
+    </form>
+    <form method="post" style="margin-top:18px; border-top:1px solid var(--border); padding-top:14px">
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="signout_all">
+      <p class="muted small" style="margin-bottom:8px">Lost a phone, or logged in on someone else's? This signs out everywhere except here.</p>
+      <button class="btn small" type="submit">Sign out other devices</button>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

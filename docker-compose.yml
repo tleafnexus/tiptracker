@@ -9,5 +9,7 @@ services:
       - ./data:/data
     environment:
       TZ: America/Denver
-      # Strongly recommended if anyone besides her can reach this server:
+      # Setup key: needed once, to create the first (admin) account. Keep it secret.
       APP_PASSWORD: "change-me"
+      # Uncomment when the app is only reached over HTTPS (reverse proxy / Cloudflare Tunnel):
+      # SECURE_COOKIES: "1"
