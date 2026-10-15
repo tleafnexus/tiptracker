@@ -47,6 +47,7 @@ Your data is kept. After `docker compose up -d --build`, the first visit shows *
 | Variable | Default | What it does |
 |---|---|---|
 | `APP_PASSWORD` | *(none)* | **Setup key.** Needed only to create the very first account, so a stranger who finds the server before you can't claim it. After that, everyone logs in with their own username and password. **Set this.** |
+| `TRUST_CLOUDFLARE` | *(off)* | Set to `1` behind a Cloudflare Tunnel, so failed-login limits apply to each visitor's real address (from Cloudflare's `CF-Connecting-IP` header) instead of lumping everyone together. |
 | `SECURE_COOKIES` | *(off)* | Set to `1` when the app is only reached over HTTPS (behind a reverse proxy), so login cookies are never sent unencrypted. |
 | `PORT` | `8000` | Port on the server you open in the browser. |
 | `TZ` | `America/Denver` | Used for "today" on new shifts. |

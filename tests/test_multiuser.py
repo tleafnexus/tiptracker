@@ -248,6 +248,21 @@ def scenario_fresh(data_dir):
     codes = [login(l, "alex", f"nope{i}").status_code for i in range(11)]
     assert codes[:10] == [401] * 10 and codes[10] == 429, codes
     assert login(l, "alex", "password1").status_code == 429, "locked even with the right password"
+    # Behind Cloudflare, one visitor's failures must not lock out another visitor
+    import app.main as m
+    m.TRUST_CLOUDFLARE = True
+    m._failures.clear()
+    x = client_for(app)
+    for i in range(41):
+        x.post("/login", data={"_csrf": tok(x), "username": f"ghost{i}", "password": "nope"},
+               headers={"CF-Connecting-IP": "203.0.113.9"})
+    assert x.post("/login", data={"_csrf": tok(x), "username": "ghost", "password": "nope"},
+                  headers={"CF-Connecting-IP": "203.0.113.9"}).status_code == 429
+    y = client_for(app)
+    assert y.post("/login", data={"_csrf": tok(y), "username": "alex", "password": "nope"},
+                  headers={"CF-Connecting-IP": "198.51.100.7"}).status_code == 401, "other visitors not locked out"
+    m.TRUST_CLOUDFLARE = False
+    m._failures.clear()
     print("lockout ok")
 
     # --- delete a member: their rows and files go, Alex's stay

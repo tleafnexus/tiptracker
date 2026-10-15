@@ -344,6 +344,19 @@ def _locked(*keys):
     return any(len(_failures[k]) >= LOCK_AFTER[k.split(":", 1)[0]] for k in keys)
 
 
+TRUST_CLOUDFLARE = os.environ.get("TRUST_CLOUDFLARE", "") == "1"
+
+
+def client_ip():
+    """The visitor's address. Behind a Cloudflare Tunnel every request arrives from the
+    tunnel, so use the address Cloudflare reports instead (only when told to trust it)."""
+    if TRUST_CLOUDFLARE:
+        cf = (request.headers.get("CF-Connecting-IP") or "").strip()
+        if cf:
+            return cf[:64]
+    return request.remote_addr or "?"
+
+
 def _new_session_version():
     return secrets.token_hex(16)
 
@@ -408,7 +421,7 @@ def login():
         return redirect(safe_next(url_for("dashboard")))
     if request.method == "POST":
         username = (request.form.get("username") or "").strip().lower()
-        keys = ("ip:" + (request.remote_addr or "?"), "user:" + username)
+        keys = ("ip:" + client_ip(), "user:" + username)
         if _locked(*keys):
             flash("Too many failed tries. Wait 15 minutes and try again.", "error")
             return render_template("login.html", username=username), 429

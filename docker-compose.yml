@@ -15,3 +15,5 @@ services:
       APP_PASSWORD: ${APP_PASSWORD:-}
       # 1 when the app is only reached over HTTPS (reverse proxy / Cloudflare Tunnel)
       SECURE_COOKIES: ${SECURE_COOKIES:-}
+      # 1 when the app is reached through a Cloudflare Tunnel
+      TRUST_CLOUDFLARE: ${TRUST_CLOUDFLARE:-}
