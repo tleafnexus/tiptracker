@@ -123,6 +123,7 @@ def scenario_fresh(data_dir):
         assert conn.execute(f"select count(*) from {t_} where user_id is null").fetchone()[0] == 0, t_
     print("data entry ok")
 
+    n_rates = connect().execute("select count(*) from wage_rates").fetchone()[0]
     # --- isolation: Sam tries to reach Alex's data every way we can think of
     leak_words = ["Alex Cantina", "Alex Diner"]
 
@@ -171,7 +172,7 @@ def scenario_fresh(data_dir):
     assert conn.execute("select name from employers where id=?", (ids["Alex Cantina"],)).fetchone()[0] == "Alex Cantina"
     assert conn.execute("select count(*) from paystubs").fetchone()[0] == 1
     assert conn.execute("select count(*) from attachments where user_id=?", (alex_uid,)).fetchone()[0] == 4
-    assert conn.execute("select count(*) from wage_rates").fetchone()[0] == 4
+    assert conn.execute("select count(*) from wage_rates").fetchone()[0] == n_rates
     assert conn.execute("select count(*) from users").fetchone()[0] == 2
     assert not conn.execute("select is_admin from users where id=?", (sam_uid,)).fetchone()[0]
     print("isolation ok")
@@ -196,7 +197,7 @@ def scenario_fresh(data_dir):
     # admin can edit shared rates
     r = a.post("/settings", data={"_csrf": tok(a, "/settings"), "action": "rate", "location_id": 1,
                                   "effective_date": "2028-01-01", "min_wage": 14, "tipped_cash_wage": 7.30})
-    assert connect().execute("select count(*) from wage_rates").fetchone()[0] == 5
+    assert connect().execute("select count(*) from wage_rates").fetchone()[0] == n_rates + 1
     print("settings ok")
 
     # --- sessions: password change signs out other devices; turning off an account signs it out
