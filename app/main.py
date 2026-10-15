@@ -510,6 +510,18 @@ def admin_users():
                 return redirect(url_for("admin_users"))
             flash(f"Created {username}. Their temporary password is {pw} and they'll pick a new one when they log in. "
                   "This is the only time it's shown.", "ok")
+        elif action == "rename":
+            username = _clean_username(request.form.get("username"))
+            display = (request.form.get("display_name") or "").strip() or username
+            clash = conn.execute("SELECT 1 FROM users WHERE username=? AND id<>?", (username, target["id"])).fetchone()
+            if clash:
+                flash(f"There's already an account called {username}.", "error")
+            else:
+                conn.execute("UPDATE users SET username=?, display_name=? WHERE id=?", (username, display, target["id"]))
+                if username != target["username"]:
+                    flash(f"Renamed {target['username']} to {username}. They log in with the new username from now on.", "ok")
+                else:
+                    flash(f"Saved {username}.", "ok")
         elif action == "reset":
             pw = _temp_password()
             conn.execute("UPDATE users SET password_hash=?, must_change_password=1, session_version=? WHERE id=?",

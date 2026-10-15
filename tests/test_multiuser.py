@@ -227,6 +227,20 @@ def scenario_fresh(data_dir):
     assert connect().execute("select is_admin from users where id=?", (alex_uid,)).fetchone()[0] == 1
     a.post("/admin/users", data={"_csrf": tok(a, "/admin/users"), "action": "delete", "user_id": alex_uid, "confirm": "alex"})
     assert connect().execute("select count(*) from users where id=?", (alex_uid,)).fetchone()[0] == 1
+    # rename: admin fixes a typo in a member's username and name; old username stops working
+    r = a.post("/admin/users", data={"_csrf": tok(a, "/admin/users"), "action": "rename", "user_id": sam_uid,
+                                     "username": "samm", "display_name": "Samm"})
+    r = a.post("/admin/users", data={"_csrf": tok(a, "/admin/users"), "action": "rename", "user_id": sam_uid,
+                                     "username": "alex", "display_name": "x"})      # taken
+    assert connect().execute("select username, display_name from users where id=?", (sam_uid,)).fetchone()[:] == ("samm", "Samm")
+    a.post("/admin/users", data={"_csrf": tok(a, "/admin/users"), "action": "rename", "user_id": sam_uid,
+                                 "username": "Sam", "display_name": "Sam"})
+    assert connect().execute("select username from users where id=?", (sam_uid,)).fetchone()[0] == "sam"
+    assert s4.get("/account").status_code == 200, "renaming doesn't sign them out"
+    r = s4.post("/admin/users", data={"_csrf": tok(s4, "/account"), "action": "rename", "user_id": alex_uid,
+                                      "username": "hacked", "display_name": "x"})
+    assert r.status_code in (302, 403)
+    assert connect().execute("select username from users where id=?", (alex_uid,)).fetchone()[0] == "alex"
     print("admin guards ok")
 
     # --- lockout after repeated failures

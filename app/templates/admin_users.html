@@ -23,6 +23,17 @@
       · last login {{ u.last_login[:10] if u.last_login else 'never' }}</div>
     <details style="margin-top:6px">
       <summary class="small">Manage</summary>
+      <form method="post" style="margin-bottom:12px">
+        <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="rename"><input type="hidden" name="user_id" value="{{ u.id }}">
+        <div class="row">
+          <div class="field" style="margin-bottom:8px"><label for="dn{{ u.id }}">Name</label>
+            <input id="dn{{ u.id }}" name="display_name" value="{{ u.display_name }}"></div>
+          <div class="field" style="margin-bottom:8px"><label for="un{{ u.id }}">Username</label>
+            <input id="un{{ u.id }}" name="username" value="{{ u.username }}" required autocapitalize="none" autocorrect="off" spellcheck="false" pattern="[A-Za-z0-9._\-]{2,32}"></div>
+        </div>
+        <button class="btn small" type="submit">Save name</button>
+        <span class="hint">Changing the username changes what they type to log in.</span>
+      </form>
       <div style="display:flex; gap:8px; flex-wrap:wrap">
         <form class="inline" method="post" onsubmit="return confirm('Reset the password for {{ u.username }}? They will be signed out everywhere.')">
           <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="reset"><input type="hidden" name="user_id" value="{{ u.id }}">
