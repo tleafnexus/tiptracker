@@ -58,9 +58,13 @@ The simplest safe option is **Tailscale** on the server and each person's phone:
 
 ### Updating
 
+If the folder was set up with `git clone` (or linked to the repo):
+
 ```bash
-docker compose up -d --build
+bash /mnt/user/appdata/tiptracker/update.sh
 ```
+
+It pulls the latest version from GitHub, shows what changed and rebuilds. It won't overwrite files you edited on the server. Otherwise copy in the new files and run `docker compose up -d --build`.
 
 The database is created or upgraded automatically on start, and the `./data` folder is untouched.
 
