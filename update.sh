@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 DIR="$(pwd)"
 # Files copied in over the network are owned by "nobody", which makes git refuse
 # to work as root. Trust this one folder (passed each run, so it survives reboots).
-git() { command git -c safe.directory="$DIR" "$@"; }
+git() { command git --no-pager -c safe.directory="$DIR" "$@"; }
 
 echo "== Fetching the latest version"
 git fetch origin
