@@ -24,7 +24,7 @@ docker compose up -d --build
 
 Your settings live in `.env`, so copying in a newer version of the app never overwrites them.
 
-Open `http://<server-ip>:8000` (or your port). The first visit asks you to **create the first account**, which becomes the admin. You'll need the `APP_PASSWORD` value from `docker-compose.yml` as the setup key. On a phone, use Share → **Add to Home Screen** in Safari, or in Chrome use ⋮ → **Add to Home screen**. It then opens like an app.
+Open `http://<server-ip>:8000` (or your port). The first visit asks you to **create the first account**, which becomes the admin. You'll need the `APP_PASSWORD` value from `.env` as the setup key. On a phone, use Share → **Add to Home Screen** in Safari, or in Chrome use ⋮ → **Add to Home screen**. It then opens like an app.
 
 Data lives in `./data` next to `docker-compose.yml` (`tiptracker.db` + `uploads/`).
 
@@ -40,7 +40,7 @@ Forgotten passwords: there's no email reset. An admin resets it and passes on th
 
 ### Upgrading from the single-user version
 
-Your data is kept. After `docker compose up -d --build`, the first visit shows **Create the first account** with a note that existing data will belong to that account. Use the **old `APP_PASSWORD` as the setup key**. If the existing data is your partner's, create **her** account first (it becomes the admin), then add yours from the Admin page and make it an admin too.
+Your data is kept. After `docker compose up -d --build`, the first visit shows **Create the first account** with a note that existing data will belong to that account. Use the **old `APP_PASSWORD` as the setup key**. Create the account for whoever entered that data first (it becomes the admin), then add any other people from the Admin page. Make them admins too if you like.
 
 ### Settings (in `.env`)
 
@@ -61,7 +61,7 @@ The simplest safe option is **Tailscale** on the server and each person's phone:
 If the folder was set up with `git clone` (or linked to the repo):
 
 ```bash
-bash /mnt/user/appdata/tiptracker/update.sh
+bash /path/to/tiptracker/update.sh      # e.g. /mnt/user/appdata/tiptracker/update.sh on Unraid
 ```
 
 It pulls the latest version from GitHub, shows what changed and rebuilds. It won't overwrite files you edited on the server. Otherwise copy in the new files and run `docker compose up -d --build`.

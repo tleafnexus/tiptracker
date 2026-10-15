@@ -380,7 +380,7 @@ def setup():
         return redirect(url_for("login"))
     if request.method == "POST":
         if SETUP_KEY and not hmac.compare_digest(request.form.get("setup_key", ""), SETUP_KEY):
-            flash("That setup key doesn't match APP_PASSWORD in docker-compose.yml.", "error")
+            flash("That setup key doesn't match APP_PASSWORD in the .env file.", "error")
             return redirect(url_for("setup"))
         username = _clean_username(request.form.get("username"))
         pw = request.form.get("password", "")

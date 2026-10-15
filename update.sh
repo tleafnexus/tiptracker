@@ -1,6 +1,6 @@
 #!/bin/bash
 # Update Tip Tracker to the latest version on GitHub and restart it.
-# Usage (on the server):  bash /mnt/user/appdata/tiptracker/update.sh
+# Usage (on the server):  bash /path/to/tiptracker/update.sh
 # Your data/ folder and .env are never touched.
 set -euo pipefail
 cd "$(dirname "$0")"
