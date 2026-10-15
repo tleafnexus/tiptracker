@@ -115,6 +115,15 @@ SEED_LOCATIONS = [
     ("Bernalillo County (unincorporated)",
      "County rate ($10.95) is below the state's, so state rules apply.",
      [("2026-01-01", 12.00, 3.00, "NM state minimum wage supersedes county rate")]),
+    ("Rio Rancho",
+     "No local minimum wage ordinance, so New Mexico state rates apply.",
+     [("2026-01-01", 12.00, 3.00, "NM state minimum wage (no Rio Rancho or Sandoval County ordinance)")]),
+    ("Bosque Farms",
+     "No local minimum wage ordinance, so New Mexico state rates apply.",
+     [("2026-01-01", 12.00, 3.00, "NM state minimum wage (no Bosque Farms or Valencia County ordinance)")]),
+    ("Los Lunas",
+     "No local minimum wage ordinance, so New Mexico state rates apply.",
+     [("2026-01-01", 12.00, 3.00, "NM state minimum wage (no Los Lunas or Valencia County ordinance)")]),
     ("New Mexico (elsewhere in state)",
      "",
      [("2026-01-01", 12.00, 3.00, "NM Department of Workforce Solutions")]),
@@ -138,8 +147,9 @@ def init_db():
     conn = connect()
     conn.execute("PRAGMA journal_mode=WAL")   # lets several people read while one writes
     conn.executescript(SCHEMA)
-    if conn.execute("SELECT COUNT(*) FROM locations").fetchone()[0] == 0:
-        for name, notes, rates in SEED_LOCATIONS:
+    # Add any built-in location this database doesn't have yet (new ones arrive with updates).
+    for name, notes, rates in SEED_LOCATIONS:
+        if not conn.execute("SELECT 1 FROM locations WHERE name=?", (name,)).fetchone():
             cur = conn.execute("INSERT INTO locations(name, notes) VALUES (?, ?)", (name, notes))
             for eff, mw, tw, src in rates:
                 conn.execute(

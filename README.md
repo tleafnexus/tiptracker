@@ -81,6 +81,9 @@ These rates were pre-loaded in September 2026. They're shared by every account, 
 | Albuquerque (city limits) 2026 | $12.00 | $7.20 | State $12 beats the city's $11.85; city's $7.20 tipped wage beats the state's $3 |
 | Albuquerque 2027 | $13.00 | $7.20 | Ordinance O-26-33; check against the city's official notice (posted by Oct 15) |
 | Bernalillo County (unincorporated) 2026 | $12.00 | $3.00 | County rate is below the state's, so state rules apply |
+| Rio Rancho 2026 | $12.00 | $3.00 | No local ordinance, so state rules apply |
+| Bosque Farms 2026 | $12.00 | $3.00 | No local ordinance, so state rules apply |
+| Los Lunas 2026 | $12.00 | $3.00 | No local ordinance, so state rules apply |
 | New Mexico elsewhere 2026 | $12.00 | $3.00 | |
 
 When a rate changes, add a new row with its start date. Older weeks keep using the rate that applied at the time. Pick the right location for each employer on the **Employers** page. Being inside Albuquerque city limits vs. unincorporated county changes the tipped minimum ($7.20 vs. $3.00).
