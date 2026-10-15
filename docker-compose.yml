@@ -1,0 +1,13 @@
+services:
+  tiptracker:
+    build: .
+    container_name: tiptracker
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+    environment:
+      TZ: America/Denver
+      # Strongly recommended if anyone besides her can reach this server:
+      APP_PASSWORD: "change-me"

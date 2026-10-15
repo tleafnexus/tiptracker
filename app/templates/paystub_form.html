@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import money_field, thumbs, status_badge, icon %}
+{% block title %}{{ 'Paystub' if stub else 'Add paystub' }} · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Paystub' if stub else 'Add paystub' }}</h1>
+  <a href="{{ url_for('paystubs_page') }}">← All paystubs</a></div>
+
+<div class="grid-2">
+<div class="card">
+<form method="post" enctype="multipart/form-data">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <div class="field">
+    <label for="employer_id">Employer</label>
+    <select id="employer_id" name="employer_id" required>
+      {% for e in employers %}<option value="{{ e.id }}" {% if (stub and stub.employer_id == e.id) or (not stub and prefill.employer == e.id) %}selected{% endif %}>{{ e.name }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="row">
+    <div class="field"><label for="period_start">Period start</label><input id="period_start" name="period_start" type="date" required value="{{ stub.period_start if stub else prefill.start }}"></div>
+    <div class="field"><label for="period_end">Period end</label><input id="period_end" name="period_end" type="date" required value="{{ stub.period_end if stub else prefill.end }}"></div>
+    <div class="field"><label for="pay_date">Pay date</label><input id="pay_date" name="pay_date" type="date" value="{{ stub.pay_date if stub else prefill.pay_date }}"></div>
+  </div>
+  <div class="field">
+    <label>Paystub photo or PDF</label>
+    <div class="photo-pick"><input type="file" name="files" accept="image/*,application/pdf" multiple></div>
+    {% if stub %}{{ thumbs(files, url_for('paystub_form', pid=stub.id)) }}{% endif %}
+  </div>
+  <p class="muted small">Copy the totals from the stub. Any you leave blank are skipped in the check.</p>
+  <div class="row">
+    <div class="field"><label for="hours">Hours paid</label>
+      <input id="hours" name="hours" type="number" inputmode="decimal" step="0.01" min="0" value="{{ hrs(stub.hours) if stub and stub.hours is not none else '' }}"></div>
+    {{ money_field('wages', 'Regular / base wages', stub.wages if stub else None) }}
+  </div>
+  <div class="row">
+    {{ money_field('tips', 'Tips on stub', stub.tips if stub else None, 'Card/charged tips paid through payroll.') }}
+    {{ money_field('gross', 'Gross pay', stub.gross if stub else None) }}
+    {{ money_field('net', 'Net (take-home)', stub.net if stub else None) }}
+  </div>
+  <div class="field"><label for="notes">Notes</label><textarea id="notes" name="notes" rows="2">{{ stub.notes if stub else '' }}</textarea></div>
+  <div class="form-actions"><button class="btn primary" type="submit">Save paystub</button></div>
+</form>
+{% if stub %}
+<form method="post" action="{{ url_for('paystub_delete', pid=stub.id) }}" onsubmit="return confirm('Delete this paystub?')" style="margin-top:18px">
+  <input type="hidden" name="_csrf" value="{{ csrf }}"><button class="btn danger small" type="submit">Delete paystub</button>
+</form>
+{% endif %}
+</div>
+
+{% if rec %}
+<div class="card">
+  <div class="card-head"><h2>Compared with logged shifts</h2>{{ status_badge(rec.status) }}</div>
+  <p class="muted small">{{ rec.shift_count }} shift{{ 's' if rec.shift_count != 1 }} logged at this employer from {{ stub.period_start|shortdate }} to {{ stub.period_end|shortdate }}.</p>
+  {% if rec.checks %}
+  <div class="table-wrap"><table>
+    <thead><tr><th></th><th class="r">Logged</th><th class="r">Paystub</th><th class="r">Difference</th></tr></thead>
+    <tbody>
+    {% for c in rec.checks %}
+      <tr><td>{{ icon('ok' if c.ok else 'bad') }} {{ c.label }}{% if c.note %}<div class="muted small">{{ c.note }}</div>{% endif %}</td>
+        {% if c.fmt == 'h' %}
+          <td class="r">{{ hrs(c.logged) }}</td><td class="r">{{ hrs(c.stub) }}</td><td class="r">{{ ('+' if c.diff > 0 else '') ~ hrs(c.diff) }}</td>
+        {% else %}
+          <td class="r">{{ money(c.logged) }}</td><td class="r">{{ money(c.stub) }}</td><td class="r">{{ money(c.diff, True) }}</td>
+        {% endif %}</tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="muted small" style="margin-top:10px">Positive difference = the paystub shows more than you logged. Negative = less.</p>
+  {% else %}
+  <p class="muted">Enter hours, wages, tips or gross from the stub to compare.</p>
+  {% endif %}
+  <dl class="kv" style="margin-top:10px">
+    <dt>Cash tips logged</dt><dd>{{ money(rec.logged.cash) }} <span class="muted small">(not normally on the paystub)</span></dd>
+  </dl>
+</div>
+{% endif %}
+</div>
+{% endblock %}

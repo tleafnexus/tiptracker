@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% from "_macros.html" import range_filter %}
+{% block title %}Shifts · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Shifts</h1>
+  <a class="btn small" href="{{ url_for('export_shifts') }}">Export CSV</a>
+</div>
+{{ range_filter(ranges, range_key, start, end, employers, employer_id, url_for('shifts_page')) }}
+
+<div class="card">
+{% if not shifts %}
+  <div class="empty"><p>No shifts in this period.</p><a class="btn primary" href="{{ url_for('shift_form') }}">+ Log a shift</a></div>
+{% else %}
+  <div class="table-wrap desktop-only">
+  <table>
+    <thead><tr><th>Date</th><th>Employer</th><th class="r">Hours</th><th class="r">Base</th><th class="r">Cash tips</th><th class="r">Card tips</th><th class="r">Total</th><th class="r">$/hr</th><th></th></tr></thead>
+    <tbody>
+    {% for s in shifts %}
+      {% set total = s.hours * s.hourly_rate + s.cash_tips + s.card_tips %}
+      <tr class="link" onclick="location.href='{{ url_for('shift_form', sid=s.id) }}'">
+        <td><a href="{{ url_for('shift_form', sid=s.id) }}">{{ s.date|nicedate }}</a></td>
+        <td>{{ s.employer_name }}</td>
+        <td class="r">{{ hrs(s.hours) }}</td>
+        <td class="r">{{ money(s.hours * s.hourly_rate) }}</td>
+        <td class="r">{{ money(s.cash_tips) }}</td>
+        <td class="r">{{ money(s.card_tips) }}</td>
+        <td class="r"><b>{{ money(total) }}</b></td>
+        <td class="r">{{ money(total / s.hours) if s.hours else '—' }}</td>
+        <td>{% if photos.get(s.id) %}<span class="muted small" title="Slip photo attached">📎 {{ photos[s.id] }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+      <tr class="total"><td>Total</td><td>{{ t.shifts }} shifts</td><td class="r">{{ hrs(t.hours) }}</td><td class="r">{{ money(t.wages) }}</td>
+        <td class="r">{{ money(t.cash) }}</td><td class="r">{{ money(t.card) }}</td><td class="r">{{ money(t.total) }}</td><td class="r">{{ money(t.per_hour) }}</td><td></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="list">
+    <dl class="kv" style="margin-bottom:8px">
+      <dt>Total</dt><dd><b>{{ money(t.total) }}</b> · {{ hrs(t.hours) }} hrs · {{ money(t.per_hour) }}/hr</dd>
+      <dt>Tips</dt><dd>{{ money(t.cash) }} cash · {{ money(t.card) }} card</dd>
+    </dl>
+    {% for s in shifts %}
+    <a class="list-item" href="{{ url_for('shift_form', sid=s.id) }}">
+      <div class="main"><div class="title">{{ s.employer_name }}{% if photos.get(s.id) %} <span class="muted small">📎</span>{% endif %}</div>
+        <div class="meta">{{ s.date|nicedate }} · {{ hrs(s.hours) }} hrs</div></div>
+      <div class="amt">{{ money(s.hours * s.hourly_rate + s.cash_tips + s.card_tips) }}
+        <div class="meta">{{ money(s.cash_tips) }} cash · {{ money(s.card_tips) }} card</div></div>
+    </a>
+    {% endfor %}
+  </div>
+{% endif %}
+</div>
+{% endblock %}

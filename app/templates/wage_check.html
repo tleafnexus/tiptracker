@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% from "_macros.html" import range_filter, status_badge, icon %}
+{% block title %}Wage check · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Minimum wage check</h1></div>
+{{ range_filter(ranges, range_key, start, end, employers, employer_id, url_for('wage_check_page')) }}
+
+<div class="alert info">{{ icon('info') }}
+  <div class="small">For each workweek ({{ week_start }}–{{ week_end }}) at each employer, this adds your base pay and all tips
+  (cash + card) and compares the total with <b>hours × the local minimum wage</b>. If an employer pays the lower tipped wage and tips
+  don't make up the difference, New Mexico law says the employer must pay the rest. It also checks the base rate against the
+  local tipped cash minimum (e.g. $7.20/hr inside Albuquerque city limits).
+  Rates by location are in <a href="{{ url_for('settings_page') }}">Settings</a>.</div>
+</div>
+
+{% set short = rows|selectattr('status', 'equalto', 'short')|list %}
+{% if rows %}
+<div class="tiles">
+  <div class="tile"><div class="label">Weeks checked</div><div class="value">{{ rows|length }}</div><div class="sub">employer-weeks</div></div>
+  <div class="tile"><div class="label">{{ icon('bad') if short else icon('ok') }} Flagged</div><div class="value">{{ short|length }}</div>
+    <div class="sub">{{ 'need a look' if short else 'all clear' }}</div></div>
+  <div class="tile"><div class="label">Possible shortfall</div><div class="value">{{ money(owed) }}</div><div class="sub">compare with paystubs</div></div>
+</div>
+{% endif %}
+
+<div class="card">
+{% if rows %}
+<div class="card-head"><h2>By week</h2>
+  <a class="small" href="{{ url_for('wage_check_page', range=range_key, start=start, end=end, employer=employer_id or '', flagged='' if flagged_only else '1') }}">{{ 'Show all weeks' if flagged_only else 'Show only flagged weeks' }}</a></div>
+{% endif %}
+{% if not rows %}
+  <div class="empty">No shifts in this period.</div>
+{% else %}
+  <div class="list">
+  {% for r in shown %}
+    <div class="list-item" style="display:block">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:center">
+        <div class="title">{{ r.employer }}</div>{{ status_badge(r.status) }}</div>
+      <div class="meta">{{ r.week|shortdate }}–{{ r.week_end|shortdate }} · {{ hrs(r.hours) }} hrs · {{ money(r.per_hour) }}/hr</div>
+      <div class="meta">Earned {{ money(r.earned) }}{% if r.required is not none %} of {{ money(r.required) }} minimum{% endif %}
+        {% if r.shortfall %} · <b style="color:var(--bad-ink)">short {{ money(r.shortfall) }}</b>{% endif %}</div>
+      {% if r.issues %}<ul class="issues">{% for i in r.issues %}<li>{{ i }}</li>{% endfor %}</ul>
+      <div class="small" style="margin-top:4px">Shifts: {% for s in r.shifts %}<a href="{{ url_for('shift_form', sid=s.id) }}">{{ s.date|shortdate }}</a>{{ ', ' if not loop.last }}{% endfor %}</div>{% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  <div class="table-wrap desktop-only">
+  <table>
+    <thead><tr><th>Week</th><th>Employer</th><th>Status</th><th class="r">Hours</th><th class="r">Base pay</th><th class="r">Tips</th><th class="r">Earned</th><th class="r">$/hr</th><th class="r">Minimum</th><th class="r">Shortfall</th></tr></thead>
+    <tbody>
+    {% for r in shown %}
+      <tr>
+        <td>{{ r.week|shortdate }}–{{ r.week_end|shortdate }}</td>
+        <td>{{ r.employer }}</td>
+        <td>{{ status_badge(r.status) }}</td>
+        <td class="r">{{ hrs(r.hours) }}</td>
+        <td class="r">{{ money(r.wages) }}</td>
+        <td class="r">{{ money(r.tips) }}</td>
+        <td class="r">{{ money(r.earned) }}</td>
+        <td class="r">{{ money(r.per_hour) }}</td>
+        <td class="r">{{ money(r.required) if r.required is not none else '—' }}{% if r.min_wage %}<div class="muted small">{{ money(r.min_wage) }}/hr</div>{% endif %}</td>
+        <td class="r">{% if r.shortfall %}<b style="color:var(--bad-ink)">{{ money(r.shortfall) }}</b>{% else %}—{% endif %}</td>
+      </tr>
+      {% if r.issues %}
+      <tr><td></td><td colspan="9" class="wrap" style="border-top:0; padding-top:0">
+        <ul class="issues">{% for i in r.issues %}<li>{{ i }}</li>{% endfor %}</ul>
+        <div class="small" style="margin-top:4px">
+          Shifts: {% for s in r.shifts %}<a href="{{ url_for('shift_form', sid=s.id) }}">{{ s.date|shortdate }}</a>{{ ', ' if not loop.last }}{% endfor %}
+        </div>
+      </td></tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+{% endif %}
+</div>
+<p class="muted small" style="margin-top:12px">This is a record-keeping aid, not legal advice. If a week is flagged, check the paystub for that period first. Some employers add a “tip credit make-up” line. If it's still short, the
+NM Department of Workforce Solutions Labor Relations Division (or the City of Albuquerque Legal Dept. for city-limit jobs, 505-768-4500) handles wage complaints.</p>
+{% endblock %}

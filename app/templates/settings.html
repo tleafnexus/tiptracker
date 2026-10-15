@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "_macros.html" import money_field, icon %}
+{% block title %}Settings · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Settings</h1>{% if auth_on %}<a class="btn small" href="{{ url_for('logout') }}">Log out</a>{% endif %}</div>
+
+<div class="grid-2">
+<div class="card">
+  <h2>Workweek</h2>
+  <form method="post" style="margin-top:10px">
+    <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="general">
+    <div class="row">
+      <div class="field"><label for="week_start">Week starts on</label>
+        <select id="week_start" name="week_start">{% for d in weekdays %}<option value="{{ loop.index0 }}" {% if loop.index0 == week_start %}selected{% endif %}>{{ d }}</option>{% endfor %}</select>
+        <div class="hint">Match your employer's payroll week.</div></div>
+      <div class="field"><label for="overtime_hours">Overtime after (hrs/week)</label>
+        <input id="overtime_hours" name="overtime_hours" type="number" step="0.5" value="{{ hrs(overtime_hours) }}"></div>
+    </div>
+    <button class="btn primary" type="submit">Save</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Backup &amp; export</h2>
+  <p class="muted small" style="margin-top:6px">The backup has everything: the database plus every slip and paystub photo. Keep a copy somewhere other than the server.</p>
+  <div class="form-actions">
+    <a class="btn primary" href="{{ url_for('backup') }}">Download full backup (.zip)</a>
+    <a class="btn" href="{{ url_for('export_shifts') }}">Shifts CSV</a>
+    <a class="btn" href="{{ url_for('export_paystubs') }}">Paystubs CSV</a>
+  </div>
+</div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <div class="card-head"><h2>Minimum wage by location</h2></div>
+  <div class="alert warn">{{ icon('warn') }}<div class="small">These rates were entered in September 2026. Albuquerque posts next year's rates by October 15, and NM rates can change by law. Add a new row with its start date when they change, and older weeks keep using the old rate.</div></div>
+  {% for l in locations %}
+  <div style="margin-top:14px">
+    <h2 style="font-size:1rem">{{ l.name }}</h2>
+    {% if l.notes %}<p class="muted small">{{ l.notes }}</p>{% endif %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Starting</th><th class="r">Minimum wage</th><th class="r">Tipped cash wage</th><th>Source</th><th></th></tr></thead>
+      <tbody>
+      {% for r in rates[l.id] %}
+        <tr><td>{{ r.effective_date|nicedate }}</td><td class="r">{{ money(r.min_wage) }}</td><td class="r">{{ money(r.tipped_cash_wage) }}</td>
+          <td class="wrap muted small">{{ r.source }}</td>
+          <td><form class="inline" method="post" onsubmit="return confirm('Remove this rate?')">
+            <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="delete_rate"><input type="hidden" name="rate_id" value="{{ r.id }}">
+            <button class="btn small danger" type="submit">Remove</button></form></td></tr>
+      {% else %}
+        <tr><td colspan="5" class="muted">No rates yet. The wage check can't run for this location.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  {% endfor %}
+
+  <div class="grid-2" style="margin-top:20px">
+    <form method="post">
+      <h2 style="font-size:1rem">Add or update a rate</h2>
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="rate">
+      <div class="field"><label for="r_loc">Location</label>
+        <select id="r_loc" name="location_id">{% for l in locations %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}</select></div>
+      <div class="row">
+        <div class="field"><label for="effective_date">Starting</label><input id="effective_date" name="effective_date" type="date" required value="{{ today[:4]|int + 1 }}-01-01"></div>
+        {{ money_field('min_wage', 'Minimum wage', None, required=True) }}
+        {{ money_field('tipped_cash_wage', 'Tipped cash wage', None, required=True) }}
+      </div>
+      <div class="field"><label for="source">Source</label><input id="source" name="source" placeholder="Where the number came from"></div>
+      <button class="btn primary" type="submit">Save rate</button>
+    </form>
+    <form method="post">
+      <h2 style="font-size:1rem">Add a location</h2>
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="action" value="location">
+      <div class="field"><label for="loc_name">Name</label><input id="loc_name" name="name" required placeholder="e.g. Rio Rancho"></div>
+      <div class="field"><label for="loc_notes">Notes</label><input id="loc_notes" name="notes" placeholder="Optional"></div>
+      <button class="btn" type="submit">Add location</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

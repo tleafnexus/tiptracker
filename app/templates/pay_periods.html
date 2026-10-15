@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, icon %}
+{% block title %}Pay periods · Tip Tracker{% endblock %}
+
+{% macro stub_cell(p) -%}
+  {% if p.stub %}
+    <a href="{{ url_for('paystub_form', pid=p.stub.id) }}">{{ status_badge(p.stub_check.status) }}</a>
+  {% elif p.state in ('waiting', 'paid') %}
+    <a class="small" style="white-space:nowrap" href="{{ url_for('paystub_form', employer=emp.id, start=p.start, end=p.end, pay_date=p.payday) }}">+ Add paystub</a>
+  {% else %}<span class="muted small">—</span>{% endif %}
+{%- endmacro %}
+
+{% macro state_label(p) -%}
+  {% if p.state == 'open' %}<span class="badge note">In progress</span>
+  {% elif p.state == 'waiting' %}<span class="badge unknown">Payday coming</span>
+  {% elif p.state == 'future' %}<span class="badge unknown">Upcoming</span>{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<div class="page-head"><h1>Pay periods</h1></div>
+
+{% if not scheduled %}
+<div class="card empty">
+  <h2>No pay schedules yet</h2>
+  <p>Tell the app how often each employer pays (weekly, every two weeks, …) and it will group shifts into paychecks here.</p>
+  <a class="btn primary" href="{{ url_for('employers_page', edit=employers[0].id) if employers else url_for('employers_page') }}">Set up a pay schedule</a>
+</div>
+{% else %}
+
+<form class="filters" method="get">
+  <select name="employer" onchange="this.form.submit()" aria-label="Employer">
+    {% for e in scheduled %}<option value="{{ e.id }}" {% if e.id == emp.id %}selected{% endif %}>{{ e.name }}</option>{% endfor %}
+  </select>
+  <span class="muted small" style="align-self:center">{{ schedule }} · <a href="{{ url_for('employers_page', edit=emp.id) }}">change</a></span>
+</form>
+{% set unscheduled = employers|rejectattr('id', 'in', scheduled|map(attribute='id')|list)|selectattr('active')|list %}
+{% if unscheduled %}
+<p class="muted small">No schedule yet for {% for e in unscheduled %}<a href="{{ url_for('employers_page', edit=e.id) }}">{{ e.name }}</a>{{ ', ' if not loop.last }}{% endfor %}.</p>
+{% endif %}
+
+{% set cur = periods|selectattr('state', 'equalto', 'open')|first %}
+{% set waiting = periods|selectattr('state', 'equalto', 'waiting')|first %}
+<div class="grid-2" style="margin-bottom:16px">
+  {% for p, title in [(waiting, 'Next paycheck'), (cur, 'Current pay period')] if p %}
+  <section class="card">
+    <div class="card-head"><h2>{{ title }}</h2>{{ state_label(p) }}</div>
+    <p class="muted" style="margin:0">{{ p.start|shortdate }} – {{ p.end|shortdate }} · payday <b style="color:var(--text)">{{ p.payday|nicedate }}</b></p>
+    <div class="tiles" style="margin:12px 0 0; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr))">
+      <div><div class="label muted small">{{ 'Expected on check' if p.state == 'waiting' else 'On check so far' }}</div>
+        <div class="value num" style="font-size:1.5rem; font-weight:700">{{ money(p.expected) }}</div>
+        <div class="muted small">before taxes · {{ money(p.t.wages) }} pay + {{ money(p.t.card) }} card tips</div></div>
+      <div><div class="label muted small"><span class="swatch" style="background:var(--cash)"></span> Cash tips (already in hand)</div>
+        <div class="value" style="font-size:1.5rem; font-weight:700">{{ money(p.t.cash) }}</div>
+        <div class="muted small">{{ hrs(p.t.hours) }} hrs · {{ p.shifts }} shift{{ 's' if p.shifts != 1 }}</div></div>
+    </div>
+    {% if p.topup %}<div class="alert bad" style="margin:12px 0 0">{{ icon('bad') }}<div class="small">Tips didn't cover minimum wage: the check should include about <b>{{ money(p.topup) }}</b> extra. <a href="{{ url_for('wage_check_page', range='custom', start=p.start, end=p.end, employer=emp.id) }}">Details</a></div></div>{% endif %}
+  </section>
+  {% endfor %}
+</div>
+
+<section class="card">
+  <div class="card-head"><h2>By pay period</h2><span class="muted small">gross, before taxes</span></div>
+  <div class="table-wrap desktop-only"><table>
+    <thead><tr><th>Period</th><th>Payday</th><th class="r">Hours</th><th class="r">Base pay</th><th class="r">Card tips</th>
+      <th class="r">Expected check</th><th class="r">Cash tips</th><th class="r">Min-wage top-up</th><th>Paystub</th></tr></thead>
+    <tbody>
+    {% for p in periods %}
+      <tr>
+        <td><a href="{{ url_for('shifts_page', range='custom', start=p.start, end=p.end, employer=emp.id) }}">{{ p.start|shortdate }} – {{ p.end|shortdate }}</a> {{ state_label(p) }}</td>
+        <td>{{ p.payday|nicedate }}</td>
+        <td class="r">{{ hrs(p.t.hours) }}</td>
+        <td class="r">{{ money(p.t.wages) }}</td>
+        <td class="r">{{ money(p.t.card) }}</td>
+        <td class="r"><b>{{ money(p.expected) }}</b></td>
+        <td class="r">{{ money(p.t.cash) }}</td>
+        <td class="r">{% if p.topup %}<b style="color:var(--bad-ink)">{{ money(p.topup) }}</b>{% else %}—{% endif %}</td>
+        <td>{{ stub_cell(p) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+
+  <div class="list">
+    {% for p in periods %}
+    <div class="list-item" style="display:block">
+      <div style="display:flex; justify-content:space-between; gap:10px; align-items:center">
+        <a class="title" href="{{ url_for('shifts_page', range='custom', start=p.start, end=p.end, employer=emp.id) }}">{{ p.start|shortdate }} – {{ p.end|shortdate }}</a>
+        <b class="num">{{ money(p.expected) }}</b></div>
+      <div class="meta">Payday {{ p.payday|nicedate }} {{ state_label(p) }}</div>
+      <div class="meta">{{ hrs(p.t.hours) }} hrs · {{ money(p.t.wages) }} pay + {{ money(p.t.card) }} card · {{ money(p.t.cash) }} cash</div>
+      {% if p.topup %}<div class="meta" style="color:var(--bad-ink)">Min-wage top-up owed: {{ money(p.topup) }}</div>{% endif %}
+      <div style="margin-top:6px">{{ stub_cell(p) }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <p style="margin:12px 0 0"><a href="{{ url_for('pay_periods_page', employer=emp.id, n=count + 8) }}">Show older pay periods</a></p>
+</section>
+<p class="muted small" style="margin-top:12px">“Expected check” is base pay plus card tips, since those normally come through payroll. Taxes and deductions aren't estimated. Enter the real numbers from the paystub to compare.</p>
+{% endif %}
+{% endblock %}

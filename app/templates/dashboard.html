@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "_macros.html" import range_filter, icon %}
+{% block content %}
+<div class="page-head">
+  <h1>Dashboard</h1>
+</div>
+{{ range_filter(ranges, range_key, start, end, employers, employer_id, url_for('dashboard')) }}
+
+{% if problems %}
+<div class="alert bad">{{ icon('bad') }}
+  <div><b>{{ problems|length }} week{{ 's' if problems|length != 1 }} flagged</b> in this period.
+    {% if owed > 0 %}Pay plus tips fell short of minimum wage by {{ money(owed) }} in total.{% endif %}
+    <a href="{{ url_for('wage_check_page', range=range_key, start=start, end=end, employer=employer_id or '') }}">See the wage check</a></div>
+</div>
+{% endif %}
+
+{% if not has_data %}
+<div class="card empty">
+  <h2>No shifts in this period yet</h2>
+  <p>Log a shift with its hours and tips, and the charts will fill in here.</p>
+  <a class="btn primary" href="{{ url_for('shift_form') }}">+ Log a shift</a>
+</div>
+{% else %}
+
+<div class="tiles">
+  <div class="tile"><div class="label">Total earned</div><div class="value">{{ money(t.total) }}</div>
+    <div class="sub">{{ money(t.per_hour) }}/hr on average</div></div>
+  <div class="tile"><div class="label">Hours worked</div><div class="value">{{ hrs(t.hours) }}</div>
+    <div class="sub">{{ t.shifts }} shift{{ 's' if t.shifts != 1 }}</div></div>
+  <div class="tile"><div class="label"><span class="swatch" style="background:var(--cash)"></span>Cash tips</div>
+    <div class="value">{{ money(t.cash) }}</div><div class="sub">{{ (100 * t.cash / t.tips)|round|int if t.tips else 0 }}% of tips</div></div>
+  <div class="tile"><div class="label"><span class="swatch" style="background:var(--card)"></span>Card tips</div>
+    <div class="value">{{ money(t.card) }}</div><div class="sub">{{ (100 * t.card / t.tips)|round|int if t.tips else 0 }}% of tips</div></div>
+  <div class="tile"><div class="label"><span class="swatch" style="background:var(--wages)"></span>Base wages</div>
+    <div class="value">{{ money(t.wages) }}</div><div class="sub">tips: {{ money(t.tips_per_hour) }}/hr</div></div>
+</div>
+
+<div class="grid-2">
+  <section class="card">
+    <div class="card-head"><h2>Earnings by employer</h2><span class="muted small">wages + tips</span></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--wages)"></i>Base wages</span>
+      <span><i class="swatch" style="background:var(--cash)"></i>Cash tips</span>
+      <span><i class="swatch" style="background:var(--card)"></i>Card tips</span>
+    </div>
+    <div class="chart-box" id="empBox"><canvas id="empChart" role="img" aria-label="Earnings by employer, split into base wages, cash tips and card tips"></canvas></div>
+    <details style="margin-top:10px"><summary class="small">Show as table</summary>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Employer</th><th class="r">Hours</th><th class="r">Wages</th><th class="r">Cash</th><th class="r">Card</th><th class="r">Total</th><th class="r">$/hr</th></tr></thead>
+        <tbody id="empTable"></tbody>
+      </table></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Cash vs card tips</h2><span class="muted small" id="tipUnit"></span></div>
+    <div class="split" aria-hidden="true">
+      <div style="flex: {{ t.cash }}; background: var(--cash)"></div>
+      <div style="flex: {{ t.card }}; background: var(--card)"></div>
+    </div>
+    <div class="split-labels">
+      <span><span class="swatch" style="background:var(--cash)"></span> Cash <b>{{ money(t.cash) }}</b></span>
+      <span>Card <b>{{ money(t.card) }}</b> <span class="swatch" style="background:var(--card)"></span></span>
+    </div>
+    <div class="chart-box" style="margin-top:14px"><canvas id="tipChart" role="img" aria-label="Cash and card tips over time"></canvas></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Earnings over time</h2><span class="muted small" id="periodUnit"></span></div>
+    <div class="legend" id="periodLegend"></div>
+    <div class="chart-box"><canvas id="periodChart" role="img" aria-label="Total earnings per period, by employer"></canvas></div>
+  </section>
+
+  <section class="card">
+    <div class="card-head"><h2>Hourly earnings by week</h2><span class="muted small">all jobs, wages + tips</span></div>
+    <div class="legend">
+      <span><i class="solid"></i>Your $/hr</span>
+      <span><i class="line"></i>Minimum wage</span>
+    </div>
+    <div class="chart-box"><canvas id="effChart" role="img" aria-label="Effective hourly earnings per week compared with minimum wage"></canvas></div>
+  </section>
+</div>
+
+<section class="card" style="margin-top:16px">
+  <div class="card-head"><h2>Recent shifts</h2><a href="{{ url_for('shifts_page', range=range_key, start=start, end=end, employer=employer_id or '') }}">All shifts →</a></div>
+  {% for s in recent %}
+  <a class="list-item" style="display:flex" href="{{ url_for('shift_form', sid=s.id) }}">
+    <div class="main"><div class="title">{{ s.employer_name }}</div>
+      <div class="meta">{{ s.date|nicedate }} · {{ hrs(s.hours) }} hrs</div></div>
+    <div class="amt">{{ money(s.hours * s.hourly_rate + s.cash_tips + s.card_tips) }}
+      <div class="meta">{{ money(s.cash_tips) }} cash · {{ money(s.card_tips) }} card</div></div>
+  </a>
+  {% endfor %}
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if has_data %}
+<script src="{{ url_for('static', filename='chart.umd.min.js') }}"></script>
+<script id="chart-data" type="application/json">{{ charts|tojson }}</script>
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endif %}
+{% endblock %}

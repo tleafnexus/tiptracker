@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_macros.html" import money_field, icon %}
+{% block title %}Employers · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Employers</h1></div>
+{% if welcome and not employers %}
+<div class="alert info">{{ icon('info') }}<div><b>Welcome!</b> Start by adding each place you work, with its base hourly pay and where it is. Location decides which minimum-wage rules apply.</div></div>
+{% endif %}
+
+<div class="grid-2">
+<div class="card">
+  <h2>{{ 'Edit ' ~ edit.name if edit else 'Add an employer' }}</h2>
+  <form method="post" style="margin-top:12px">
+    <input type="hidden" name="_csrf" value="{{ csrf }}">
+    {% if edit %}<input type="hidden" name="id" value="{{ edit.id }}">{% endif %}
+    <div class="field"><label for="name">Name</label><input id="name" name="name" required value="{{ edit.name if edit else '' }}" placeholder="e.g. Frontier Restaurant"></div>
+    <div class="field"><label for="location_id">Location</label>
+      <select id="location_id" name="location_id">
+        {% for l in locations %}<option value="{{ l.id }}" {% if edit and edit.location_id == l.id %}selected{% endif %}>{{ l.name }}</option>{% endfor %}
+      </select>
+      <div class="hint">Inside Albuquerque city limits vs. unincorporated county changes the tipped minimum. Add others in <a href="{{ url_for('settings_page') }}">Settings</a>.</div>
+    </div>
+    {{ money_field('hourly_rate', 'Base hourly pay', edit.hourly_rate if edit else None, 'What they pay per hour before tips.', required=True) }}
+    <fieldset class="field" style="border-top:1px solid var(--border); padding-top:12px; margin-top:4px">
+      <label for="pay_frequency">How often it pays</label>
+      <select id="pay_frequency" name="pay_frequency" onchange="document.getElementById('schedDetail').hidden = !this.value">
+        {% for k, label in frequencies.items() %}<option value="{{ k }}" {% if edit and edit.pay_frequency == k %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <div id="schedDetail" {% if not (edit and edit.pay_frequency) %}hidden{% endif %} style="margin-top:12px">
+        <p class="hint" style="margin:0 0 8px">Look at any recent paystub and copy two dates from it.</p>
+        <div class="row">
+          <div class="field" style="margin:0"><label for="period_anchor">That pay period started</label>
+            <input id="period_anchor" name="period_anchor" type="date" value="{{ edit.period_anchor if edit else '' }}"></div>
+          <div class="field" style="margin:0"><label for="paid_on">…and was paid on</label>
+            <input id="paid_on" name="paid_on" type="date" value="{{ edit_paid_on }}"></div>
+        </div>
+      </div>
+    </fieldset>
+    <div class="field"><label class="check"><input type="checkbox" name="tipped" {% if not edit or edit.tipped %}checked{% endif %}> Tipped job (paid a tipped base wage)</label></div>
+    <div class="field"><label class="check"><input type="checkbox" name="active" {% if not edit or edit.active %}checked{% endif %}> Currently working here</label></div>
+    <div class="field"><label for="notes">Notes</label><input id="notes" name="notes" value="{{ edit.notes if edit else '' }}" placeholder="Optional"></div>
+    <div class="form-actions"><button class="btn primary" type="submit">Save</button>
+      {% if edit %}<a class="btn" href="{{ url_for('employers_page') }}">Cancel</a>{% endif %}</div>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Your employers</h2>
+  {% if not employers %}<p class="muted" style="margin-top:8px">None yet.</p>{% endif %}
+  {% for e in employers %}
+  <div class="list-item" style="display:flex">
+    <div class="main">
+      <div class="title"><span class="swatch" style="background:var(--s{{ (loop.index0 % 8) + 1 }})"></span> {{ e.name }}
+        {% if not e.active %}<span class="badge unknown">Inactive</span>{% endif %}</div>
+      <div class="meta">{{ money(e.hourly_rate) }}/hr{{ ' tipped' if e.tipped }} · {{ e.location_name or 'No location' }} · {{ shift_counts.get(e.id, 0) }} shifts</div>
+      <div class="meta">{% if describe(e) %}Paid: {{ describe(e) }}{% else %}No pay schedule yet{% endif %}</div>
+    </div>
+    <div style="display:flex; gap:6px; align-items:center">
+      <a class="btn small" href="{{ url_for('employers_page', edit=e.id) }}">Edit</a>
+      {% if not shift_counts.get(e.id) %}
+      <form class="inline" method="post" action="{{ url_for('employer_delete', eid=e.id) }}" onsubmit="return confirm('Delete {{ e.name }}?')">
+        <input type="hidden" name="_csrf" value="{{ csrf }}"><button class="btn small danger" type="submit">Delete</button></form>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+</div>
+{% endblock %}

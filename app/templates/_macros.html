@@ -1,0 +1,66 @@
+{% macro icon(name) -%}
+{%- if name in ('ok', 'good') -%}
+<svg class="ic ic-{{ name }}" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg>
+{%- elif name in ('short', 'bad', 'error', 'mismatch') -%}
+<svg class="ic ic-{{ name }}" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 5.5v5.5M10 14.2v.3"/></svg>
+{%- elif name in ('warn', 'note') -%}
+<svg class="ic ic-{{ name }}" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5l8 14.5H2z"/><path d="M10 8v4M10 14.6v.2"/></svg>
+{%- else -%}
+<svg class="ic ic-{{ name }}" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v5M10 6v.2"/></svg>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+{% set labels = {'ok': 'OK', 'short': 'Underpaid', 'note': 'Check', 'unknown': 'No rate', 'mismatch': "Doesn't match", 'empty': 'No totals entered'} %}
+<span class="badge {{ status }}">{{ icon(status) }}{{ labels.get(status, status) }}</span>
+{%- endmacro %}
+
+{% macro range_filter(ranges, range_key, start, end, employers, employer_id, action) -%}
+<form class="filters {% if range_key == 'custom' %}show-custom{% endif %}" method="get" action="{{ action }}" id="filters">
+  <select name="range" aria-label="Date range" onchange="this.form.classList.toggle('show-custom', this.value==='custom'); if (this.value!=='custom') this.form.submit()">
+    {% for k, label in ranges.items() %}<option value="{{ k }}" {% if k == range_key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <span class="custom">
+    <input type="date" name="start" value="{{ start.isoformat() if range_key == 'custom' else '' }}" aria-label="Start date">
+    <input type="date" name="end" value="{{ end.isoformat() if range_key == 'custom' else '' }}" aria-label="End date">
+    <button class="btn small" type="submit">Apply</button>
+  </span>
+  {% if employers|length > 1 %}
+  <select name="employer" aria-label="Employer" onchange="this.form.submit()">
+    <option value="">All employers</option>
+    {% for e in employers %}<option value="{{ e.id }}" {% if e.id == employer_id %}selected{% endif %}>{{ e.name }}</option>{% endfor %}
+  </select>
+  {% endif %}
+</form>
+{%- endmacro %}
+
+{% macro money_field(name, label, value, hint='', required=False) -%}
+<div class="field">
+  <label for="{{ name }}">{{ label }}</label>
+  <div class="money-input"><span>$</span>
+    <input id="{{ name }}" name="{{ name }}" type="number" inputmode="decimal" step="0.01" min="0"
+           value="{{ '%.2f'|format(value) if value is not none and value != '' else '' }}" placeholder="0.00" {% if required %}required{% endif %}>
+  </div>
+  {% if hint %}<div class="hint">{{ hint }}</div>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro thumbs(files, next) -%}
+{% if files %}
+<div class="thumbs">
+  {% for f in files %}
+  <div class="thumb">
+    <a class="img" href="{{ url_for('upload', name=f.filename) }}" target="_blank" rel="noopener">
+      {% if f.filename.rsplit('.',1)[1] in ('jpg','jpeg','png','webp','gif') %}
+        <img src="{{ url_for('upload', name=f.filename) }}" alt="{{ f.original_name }}" loading="lazy">
+      {% else %}<span class="file">{{ f.filename.rsplit('.',1)[1]|upper }}</span>{% endif %}
+    </a>
+    <form method="post" action="{{ url_for('delete_attachment', aid=f.id) }}" onsubmit="return confirm('Remove this file?')">
+      <input type="hidden" name="_csrf" value="{{ csrf }}"><input type="hidden" name="next" value="{{ next }}">
+      <button type="submit">Remove</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{%- endmacro %}

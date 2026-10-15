@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "_macros.html" import money_field, thumbs %}
+{% block title %}{{ 'Edit shift' if shift else 'Log a shift' }} · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Edit shift' if shift else 'Log a shift' }}</h1></div>
+<div class="card" style="max-width:640px">
+<form method="post" enctype="multipart/form-data" id="shiftForm">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="row">
+    <div class="field">
+      <label for="employer_id">Employer</label>
+      <select id="employer_id" name="employer_id" required>
+        {% for e in employers if e.active or (shift and shift.employer_id == e.id) %}
+        <option value="{{ e.id }}" data-rate="{{ e.hourly_rate }}"
+          {% if (shift and shift.employer_id == e.id) or (not shift and e.id == default_employer) %}selected{% endif %}>{{ e.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label for="date">Date</label>
+      <input id="date" name="date" type="date" required value="{{ shift.date if shift else today }}">
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="field"><label for="start_time">Clock in</label>
+      <input id="start_time" name="start_time" type="time" value="{{ shift.start_time if shift else '' }}"></div>
+    <div class="field"><label for="end_time">Clock out</label>
+      <input id="end_time" name="end_time" type="time" value="{{ shift.end_time if shift else '' }}"></div>
+    <div class="field"><label for="hours">Hours worked</label>
+      <input id="hours" name="hours" type="number" inputmode="decimal" step="0.01" min="0" max="24" required
+             value="{{ hrs(shift.hours) if shift else '' }}" placeholder="0">
+      <div class="hint" id="hoursHint">Fills in from clock times, minus any unpaid break.</div></div>
+  </div>
+  <div class="field" style="max-width:220px">
+    <label for="break_min">Unpaid break (minutes)</label>
+    <input id="break_min" type="number" inputmode="numeric" min="0" step="5" value="0">
+  </div>
+
+  <div class="row">
+    {{ money_field('cash_tips', 'Cash tips', shift.cash_tips if shift else None, 'Cash you took home, including cash stapled to the slip.') }}
+    {{ money_field('card_tips', 'Card tips', shift.card_tips if shift else None, 'Credit/debit tips (usually paid on the paycheck).') }}
+  </div>
+
+  <div class="field">
+    <label>Photo of the tip slip</label>
+    <div class="photo-pick">
+      <input type="file" name="photos" accept="image/*,application/pdf" capture="environment" multiple>
+      <div class="hint">Snap the slip, then the paper can go. You can add more than one.</div>
+    </div>
+    {% if shift %}{{ thumbs(photos, url_for('shift_form', sid=shift.id)) }}{% endif %}
+  </div>
+
+  <div class="field"><label for="notes">Notes</label>
+    <textarea id="notes" name="notes" rows="2" placeholder="Optional (e.g. tip-out to bussers, double shift)">{{ shift.notes if shift else '' }}</textarea></div>
+
+  <details {% if shift and shift.hourly_rate != (employers|selectattr('id','equalto',shift.employer_id)|first).hourly_rate %}open{% endif %}>
+    <summary>Base pay for this shift</summary>
+    {{ money_field('hourly_rate', 'Hourly base pay', shift.hourly_rate if shift else employers[0].hourly_rate,
+        "Filled in from the employer's rate. Change it only if this shift paid differently.") }}
+  </details>
+
+  <div class="form-actions">
+    <button class="btn primary" type="submit">Save shift</button>
+    {% if not shift %}<button class="btn" type="submit" name="again" value="1">Save &amp; log another</button>{% endif %}
+    <a class="btn" href="{{ next or url_for('shifts_page') }}">Cancel</a>
+  </div>
+</form>
+{% if shift %}
+<form method="post" action="{{ url_for('shift_delete', sid=shift.id) }}" onsubmit="return confirm('Delete this shift and its photos?')" style="margin-top:18px">
+  <input type="hidden" name="_csrf" value="{{ csrf }}">
+  <button class="btn danger small" type="submit">Delete shift</button>
+</form>
+{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const emp = $('employer_id'), rate = $('hourly_rate');
+  const isNew = {{ 'false' if shift else 'true' }};
+  function syncRate() { if (isNew || !rate.dataset.touched) rate.value = Number(emp.selectedOptions[0].dataset.rate || 0).toFixed(2); }
+  rate.addEventListener('input', () => rate.dataset.touched = 1);
+  emp.addEventListener('change', syncRate);
+  if (isNew) syncRate();
+
+  function calcHours() {
+    const a = $('start_time').value, b = $('end_time').value;
+    if (!a || !b) return;
+    const [ah, am] = a.split(':').map(Number), [bh, bm] = b.split(':').map(Number);
+    let mins = (bh * 60 + bm) - (ah * 60 + am);
+    if (mins <= 0) mins += 24 * 60;             // shift past midnight
+    mins -= Number($('break_min').value || 0);
+    $('hours').value = Math.max(0, Math.round(mins / 60 * 100) / 100);
+  }
+  ['start_time', 'end_time', 'break_min'].forEach((id) => $(id).addEventListener('change', calcHours));
+})();
+</script>
+{% endblock %}

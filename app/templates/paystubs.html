@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+{% block title %}Paystubs · Tip Tracker{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Paystubs</h1>
+  <div style="display:flex; gap:8px">
+    <a class="btn small" href="{{ url_for('export_paystubs') }}">Export CSV</a>
+    <a class="btn primary small" href="{{ url_for('paystub_form') }}">+ Add paystub</a>
+  </div>
+</div>
+{% if employers|length > 1 %}
+<form class="filters" method="get">
+  <select name="employer" onchange="this.form.submit()" aria-label="Employer">
+    <option value="">All employers</option>
+    {% for e in employers %}<option value="{{ e.id }}" {% if e.id == employer_id %}selected{% endif %}>{{ e.name }}</option>{% endfor %}
+  </select>
+</form>
+{% endif %}
+<p class="muted small">Each paystub is compared with the shifts logged for that employer and pay period. A mismatch usually means a missed or mistyped shift, or a payroll error worth asking about.</p>
+<div class="card">
+{% if not stubs %}
+  <div class="empty"><p>No paystubs yet. Add one with a photo or PDF and the totals from it.</p>
+    <a class="btn primary" href="{{ url_for('paystub_form') }}">+ Add paystub</a></div>
+{% else %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Pay period</th><th>Employer</th><th>Check</th><th class="r">Hours</th><th class="r">Gross</th><th class="r">Net</th><th></th></tr></thead>
+    <tbody>
+    {% for s, rec in stubs %}
+      <tr class="link" onclick="location.href='{{ url_for('paystub_form', pid=s.id) }}'">
+        <td><a href="{{ url_for('paystub_form', pid=s.id) }}">{{ s.period_start|shortdate }} – {{ s.period_end|nicedate }}</a>
+          {% if s.pay_date %}<div class="muted small">Paid {{ s.pay_date|shortdate }}</div>{% endif %}</td>
+        <td>{{ s.employer_name }}</td>
+        <td>{{ status_badge(rec.status) }}
+          {% for c in rec.checks if not c.ok %}<div class="muted small">{{ c.label }} off by {{ hrs(c.diff) ~ ' h' if c.fmt == 'h' else money(c.diff, True) }}</div>{% endfor %}</td>
+        <td class="r">{{ hrs(s.hours) }}</td>
+        <td class="r">{{ money(s.gross) }}</td>
+        <td class="r">{{ money(s.net) }}</td>
+        <td>{% if files.get(s.id) %}<span class="muted small">📎 {{ files[s.id] }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+{% endif %}
+</div>
+{% endblock %}
